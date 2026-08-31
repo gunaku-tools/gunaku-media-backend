@@ -46,10 +46,15 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "100kb" }));
 
 const PORT = process.env.PORT || 10000;
-const VERSION = "2.0.0";
+const VERSION = "2.2.0";
 const MAX_DOWNLOAD_MB = Number(process.env.MAX_DOWNLOAD_MB || 300);
 const MAX_DOWNLOAD_BYTES = MAX_DOWNLOAD_MB * 1024 * 1024;
 const DOWNLOAD_TIMEOUT_MS = Number(process.env.DOWNLOAD_TIMEOUT_MS || 180000);
+
+const YTDL_POT_PROVIDER_URL =
+  process.env.YTDL_POT_PROVIDER_URL ||
+  "http://bgutil-ytdlp-pot-provider.railway.internal:4416";
+
 const TMP_DIR = path.join(os.tmpdir(), "gunaku-media");
 fs.mkdirSync(TMP_DIR, { recursive: true });
 
@@ -132,7 +137,7 @@ app.get("/", (_req,res) => res.json({
 }));
 
 app.get("/api/status", (_req,res) => res.json({
-  service:"GUNAKU Media Backend", status:"OK", version:VERSION, downloader:"yt-dlp + ffmpeg"
+  service:"GUNAKU Media Backend", status:"OK", version:VERSION, downloader:"yt-dlp + ffmpeg", potProvider:YTDL_POT_PROVIDER_URL
 }));
 
 app.post("/api/check", (req,res) => {
@@ -171,7 +176,18 @@ app.post("/api/download", async (req,res) => {
   await fsp.mkdir(jobDir, {recursive:true});
   try {
     const outputTemplate = path.join(jobDir, "%(title).120B [GUNAKU].%(ext)s");
-    const common = ["--no-playlist","--restrict-filenames","--max-filesize",`${MAX_DOWNLOAD_MB}M`,"--no-warnings","--newline"];
+    const common = [
+      "--no-playlist",
+      "--restrict-filenames",
+      "--max-filesize",
+      `${MAX_DOWNLOAD_MB}M`,
+      "--no-warnings",
+      "--newline",
+      "--extractor-args",
+      `youtubepot-bgutilhttp:base_url=${YTDL_POT_PROVIDER_URL}`,
+      "--js-runtimes",
+      "node"
+    ];
     const args = [...common];
 
     if (format === "mp3") {
