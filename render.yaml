@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: gunaku-media-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/status
