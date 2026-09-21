@@ -1,8 +1,10 @@
-# GUNAKU Media Backend — V2.5
+# GUNAKU Media Backend — V2.5.1
 
 Backend production untuk Kartu #09 Media Downloader GUNAKU.
 
-## Perubahan utama V2.5
+- Build fix: instalasi yt-dlp dan bgutil PO Token Provider digabung dalam satu perintah pip dengan `--break-system-packages` untuk Debian Bookworm.
+
+## Perubahan utama V2.5.1
 - Node 22+ untuk runtime JavaScript yt-dlp yang saat ini didukung.
 - Instalasi `yt-dlp[default,curl-cffi]` untuk dukungan browser impersonation.
 - Plugin `bgutil-ytdlp-pot-provider==2.0.0` dipasang agar PO Token Provider benar-benar tersedia di yt-dlp.

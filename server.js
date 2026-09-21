@@ -36,7 +36,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "100kb" }));
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = "2.5.0";
+const VERSION = "2.5.1";
 
 const MAX_DOWNLOAD_MB = Number(process.env.MAX_DOWNLOAD_MB || 300);
 const MAX_DOWNLOAD_BYTES = MAX_DOWNLOAD_MB * 1024 * 1024;

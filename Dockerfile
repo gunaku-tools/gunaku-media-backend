@@ -2,8 +2,7 @@ FROM node:22-bookworm-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 python3-pip ffmpeg ca-certificates \
-    && pip3 install --no-cache-dir --break-system-packages -U "yt-dlp[default,curl-cffi]" \
-    && python3 -m pip install --no-cache-dir "bgutil-ytdlp-pot-provider==2.0.0" \
+    && python3 -m pip install --no-cache-dir --break-system-packages -U "yt-dlp[default,curl-cffi]" "bgutil-ytdlp-pot-provider==2.0.0" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
