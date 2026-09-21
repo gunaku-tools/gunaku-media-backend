@@ -36,7 +36,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "100kb" }));
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = "2.4.0";
+const VERSION = "2.5.0";
 
 const MAX_DOWNLOAD_MB = Number(process.env.MAX_DOWNLOAD_MB || 300);
 const MAX_DOWNLOAD_BYTES = MAX_DOWNLOAD_MB * 1024 * 1024;
@@ -51,6 +51,16 @@ const YTDL_POT_PROVIDER_URL =
   typeof process.env.YTDL_POT_PROVIDER_URL === "string"
     ? process.env.YTDL_POT_PROVIDER_URL.trim()
     : "";
+
+/*
+ * Current yt-dlp guidance recommends the mweb client for YouTube GVS
+ * requests when a PO Token Provider is available.
+ */
+const YTDL_YOUTUBE_PLAYER_CLIENT =
+  typeof process.env.YTDL_YOUTUBE_PLAYER_CLIENT === "string" &&
+  process.env.YTDL_YOUTUBE_PLAYER_CLIENT.trim()
+    ? process.env.YTDL_YOUTUBE_PLAYER_CLIENT.trim()
+    : (YTDL_POT_PROVIDER_URL ? "mweb" : "");
 
 const YTDL_JS_RUNTIME =
   typeof process.env.YTDL_JS_RUNTIME === "string" && process.env.YTDL_JS_RUNTIME.trim()
@@ -266,6 +276,57 @@ async function getCommandVersion(command, args) {
   }
 }
 
+async function checkPotProvider() {
+  if (!YTDL_POT_PROVIDER_URL) {
+    return {
+      configured: false,
+      reachable: false,
+      httpStatus: null,
+      response: null,
+      error: null
+    };
+  }
+
+  const base = YTDL_POT_PROVIDER_URL.replace(/\/+$/, "");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetch(base + "/ping", {
+      method: "GET",
+      headers: {
+        "Accept": "text/plain, application/json"
+      },
+      signal: controller.signal
+    });
+
+    let body = "";
+    try {
+      body = (await response.text()).slice(0, 240);
+    } catch {}
+
+    return {
+      configured: true,
+      reachable: response.ok,
+      httpStatus: response.status,
+      response: body || null,
+      error: null
+    };
+  } catch (err) {
+    return {
+      configured: true,
+      reachable: false,
+      httpStatus: null,
+      response: null,
+      error: err?.name === "AbortError"
+        ? "timeout"
+        : String(err?.message || err).slice(0, 240)
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function findDownloadedFile(dir) {
   const entries = await fsp.readdir(dir, { withFileTypes: true });
   const files = [];
@@ -312,6 +373,16 @@ function buildCommonArgs() {
   }
 
   /*
+   * YouTube: use mweb when the PO Token Provider is configured.
+   */
+  if (YTDL_YOUTUBE_PLAYER_CLIENT) {
+    args.push(
+      "--extractor-args",
+      `youtube:player_client=${YTDL_YOUTUBE_PLAYER_CLIENT}`
+    );
+  }
+
+  /*
    * TikTok: prioritize mobile API extraction. Current yt-dlp exposes
    * app_info/api_hostname specifically for this path.
    */
@@ -350,6 +421,7 @@ app.get("/api/status", (_req, res) => {
     version: VERSION,
     downloader: "yt-dlp + ffmpeg",
     jsRuntime: YTDL_JS_RUNTIME,
+    youtubePlayerClient: YTDL_YOUTUBE_PLAYER_CLIENT || "yt-dlp-default",
     tiktokMobileApiConfigured: Boolean(TIKTOK_APP_INFO),
     tiktokApiHostname: TIKTOK_API_HOSTNAME,
     potProviderConfigured: Boolean(YTDL_POT_PROVIDER_URL)
@@ -361,9 +433,10 @@ app.get("/api/status", (_req, res) => {
  * It does not expose secrets or the actual PO Token Provider URL.
  */
 app.get("/api/diagnostics", async (_req, res) => {
-  const [ytDlp, ffmpeg] = await Promise.all([
+  const [ytDlp, ffmpeg, potProvider] = await Promise.all([
     getCommandVersion("yt-dlp", ["--version"]),
-    getCommandVersion("ffmpeg", ["-version"])
+    getCommandVersion("ffmpeg", ["-version"]),
+    checkPotProvider()
   ]);
 
   const healthy =
@@ -378,11 +451,16 @@ app.get("/api/diagnostics", async (_req, res) => {
     version: VERSION,
     node: process.version,
     jsRuntime: YTDL_JS_RUNTIME,
+    youtubePlayerClient: YTDL_YOUTUBE_PLAYER_CLIENT || "yt-dlp-default",
     tiktokMobileApiConfigured: Boolean(TIKTOK_APP_INFO),
     tiktokApiHostname: TIKTOK_API_HOSTNAME,
     ytDlp,
     ffmpeg,
-    potProviderConfigured: Boolean(YTDL_POT_PROVIDER_URL)
+    potProviderConfigured: Boolean(YTDL_POT_PROVIDER_URL),
+    potProviderReachable: Boolean(potProvider.reachable),
+    potProviderHttpStatus: potProvider.httpStatus,
+    potProviderResponse: potProvider.response,
+    potProviderError: potProvider.error
   });
 });
 
@@ -552,5 +630,6 @@ app.listen(PORT, () => {
   console.log(`GUNAKU API ONLINE pada port ${PORT}`);
   console.log(`GUNAKU Media Backend ${VERSION}`);
   console.log(`JS runtime: ${YTDL_JS_RUNTIME}`);
+  console.log(`YouTube player client: ${YTDL_YOUTUBE_PLAYER_CLIENT || "yt-dlp-default"}`);
   console.log(`PO Token Provider: ${YTDL_POT_PROVIDER_URL ? "configured" : "not configured"}`);
 });

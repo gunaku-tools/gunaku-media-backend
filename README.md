@@ -1,10 +1,13 @@
-# GUNAKU Media Backend — V2.4
+# GUNAKU Media Backend — V2.5
 
 Backend production untuk Kartu #09 Media Downloader GUNAKU.
 
-## Perubahan utama V2.4
+## Perubahan utama V2.5
 - Node 22+ untuk runtime JavaScript yt-dlp yang saat ini didukung.
 - Instalasi `yt-dlp[default,curl-cffi]` untuk dukungan browser impersonation.
+- Plugin `bgutil-ytdlp-pot-provider==2.0.0` dipasang agar PO Token Provider benar-benar tersedia di yt-dlp.
+- Saat `YTDL_POT_PROVIDER_URL` terisi, client YouTube diarahkan ke `mweb` sesuai panduan PO Token yt-dlp.
+- `/api/diagnostics` memeriksa keterjangkauan provider melalui `/ping`.
 - TikTok mencoba mobile API extraction lebih dulu melalui `tiktok:app_info` + `api_hostname`.
 - `YTDL_POT_PROVIDER_URL` sekarang benar-benar opsional.
 - Tidak lagi memaksa hostname Railway internal yang belum tentu ada.
@@ -44,3 +47,7 @@ GET /api/diagnostics
 
 ## Catatan penggunaan
 Gunakan hanya untuk media yang memang berhak Anda unduh dan sesuai ketentuan layanan platform serta hukum yang berlaku. Backend tidak dimaksudkan untuk melewati DRM, login, paywall, atau pembatasan akses.
+
+
+Environment tambahan V2.5:
+YTDL_YOUTUBE_PLAYER_CLIENT=(opsional; default `mweb` saat POT Provider dikonfigurasi)
