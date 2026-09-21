@@ -1,10 +1,11 @@
-# GUNAKU Media Backend — V2.3
+# GUNAKU Media Backend — V2.4
 
 Backend production untuk Kartu #09 Media Downloader GUNAKU.
 
-## Perubahan utama V2.3
+## Perubahan utama V2.4
 - Node 22+ untuk runtime JavaScript yt-dlp yang saat ini didukung.
-- Instalasi `yt-dlp[default]` agar paket `yt-dlp-ejs` ikut terpasang.
+- Instalasi `yt-dlp[default,curl-cffi]` untuk dukungan browser impersonation.
+- TikTok mencoba mobile API extraction lebih dulu melalui `tiktok:app_info` + `api_hostname`.
 - `YTDL_POT_PROVIDER_URL` sekarang benar-benar opsional.
 - Tidak lagi memaksa hostname Railway internal yang belum tentu ada.
 - `/api/diagnostics` untuk memeriksa `yt-dlp` dan `ffmpeg`.
@@ -28,6 +29,8 @@ MAX_DOWNLOAD_MB=300
 DOWNLOAD_TIMEOUT_MS=180000
 YTDL_JS_RUNTIME=node
 YTDL_POT_PROVIDER_URL=(opsional)
+YTDL_TIKTOK_APP_INFO=(opsional; 19-digit install ID, otomatis dibuat jika kosong)
+YTDL_TIKTOK_API_HOSTNAME=(opsional; default api16-normal-c-useast1a.tiktokv.com)
 
 ## Deployment
 Railway dapat menjalankan project ini menggunakan Dockerfile.

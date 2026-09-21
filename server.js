@@ -36,7 +36,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "100kb" }));
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = "2.3.0";
+const VERSION = "2.4.0";
 
 const MAX_DOWNLOAD_MB = Number(process.env.MAX_DOWNLOAD_MB || 300);
 const MAX_DOWNLOAD_BYTES = MAX_DOWNLOAD_MB * 1024 * 1024;
@@ -56,6 +56,31 @@ const YTDL_JS_RUNTIME =
   typeof process.env.YTDL_JS_RUNTIME === "string" && process.env.YTDL_JS_RUNTIME.trim()
     ? process.env.YTDL_JS_RUNTIME.trim()
     : "node";
+
+/*
+ * TikTok mobile API fallback.
+ * Current yt-dlp supports mobile API extraction when app_info is supplied.
+ * This lets TikTok try the mobile API before its webpage challenge path.
+ */
+const TIKTOK_API_HOSTNAME =
+  typeof process.env.YTDL_TIKTOK_API_HOSTNAME === "string" &&
+  process.env.YTDL_TIKTOK_API_HOSTNAME.trim()
+    ? process.env.YTDL_TIKTOK_API_HOSTNAME.trim()
+    : "api16-normal-c-useast1a.tiktokv.com";
+
+function generateTikTokInstallId() {
+  const min = 7250000000000000000n;
+  const max = 7325099899999994577n;
+  const span = max - min + 1n;
+  const random = BigInt("0x" + crypto.randomBytes(8).toString("hex")) % span;
+  return String(min + random);
+}
+
+const TIKTOK_APP_INFO =
+  typeof process.env.YTDL_TIKTOK_APP_INFO === "string" &&
+  process.env.YTDL_TIKTOK_APP_INFO.trim()
+    ? process.env.YTDL_TIKTOK_APP_INFO.trim()
+    : generateTikTokInstallId();
 
 const TMP_DIR = path.join(os.tmpdir(), "gunaku-media");
 fs.mkdirSync(TMP_DIR, { recursive: true });
@@ -280,15 +305,25 @@ function buildCommonArgs() {
   ];
 
   /*
-   * yt-dlp now requires a supported external JS runtime for full YouTube support.
-   * Node 22+ is installed by the Dockerfile and enabled here.
+   * yt-dlp requires a supported external JS runtime for full YouTube support.
    */
   if (YTDL_JS_RUNTIME) {
     args.push("--js-runtimes", YTDL_JS_RUNTIME);
   }
 
   /*
-   * PO Token Provider is optional. Do NOT force an imaginary internal service.
+   * TikTok: prioritize mobile API extraction. Current yt-dlp exposes
+   * app_info/api_hostname specifically for this path.
+   */
+  if (TIKTOK_APP_INFO) {
+    args.push(
+      "--extractor-args",
+      `tiktok:app_info=${TIKTOK_APP_INFO};api_hostname=${TIKTOK_API_HOSTNAME}`
+    );
+  }
+
+  /*
+   * PO Token Provider remains optional for YouTube.
    */
   if (YTDL_POT_PROVIDER_URL) {
     args.push(
@@ -299,7 +334,6 @@ function buildCommonArgs() {
 
   return args;
 }
-
 app.get("/", (_req, res) => {
   res.json({
     service: "GUNAKU Media Backend",
@@ -316,6 +350,8 @@ app.get("/api/status", (_req, res) => {
     version: VERSION,
     downloader: "yt-dlp + ffmpeg",
     jsRuntime: YTDL_JS_RUNTIME,
+    tiktokMobileApiConfigured: Boolean(TIKTOK_APP_INFO),
+    tiktokApiHostname: TIKTOK_API_HOSTNAME,
     potProviderConfigured: Boolean(YTDL_POT_PROVIDER_URL)
   });
 });
@@ -342,6 +378,8 @@ app.get("/api/diagnostics", async (_req, res) => {
     version: VERSION,
     node: process.version,
     jsRuntime: YTDL_JS_RUNTIME,
+    tiktokMobileApiConfigured: Boolean(TIKTOK_APP_INFO),
+    tiktokApiHostname: TIKTOK_API_HOSTNAME,
     ytDlp,
     ffmpeg,
     potProviderConfigured: Boolean(YTDL_POT_PROVIDER_URL)
